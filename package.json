@@ -1,0 +1,60 @@
+{
+  "name": "equip360",
+  "productName": "Equip360",
+  "version": "1.0.0",
+  "description": "Equip360 — oilfield tool tracking, history and inventory",
+  "main": "main.js",
+  "author": "Jafar Shahrokhi",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "obfuscate": "node obfuscate.js",
+    "prestart": "node obfuscate.js",
+    "start": "electron .",
+    "predist": "node obfuscate.js",
+    "dist": "electron-builder --win --x64",
+    "predist32": "node obfuscate.js",
+    "dist32": "electron-builder --win --ia32",
+    "preportable": "node obfuscate.js",
+    "portable": "electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0",
+    "javascript-obfuscator": "^4.1.0"
+  },
+  "build": {
+    "appId": "com.equip360.app",
+    "productName": "Equip360",
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/app.bundle.html",
+      "app/*.png"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Equip360-Setup-${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Equip360"
+    },
+    "copyright": "© 2026 Jafar Shahrokhi"
+  },
+  "copyright": "© 2026 Jafar Shahrokhi. All rights reserved."
+}
