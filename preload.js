@@ -1,6 +1,6 @@
 /* Runs before the page. Supplies a hardware-derived machine identifier so the
    licence stays tied to this computer even if application data is cleared. */
-const { contextBridge } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 const os = require("os");
 const crypto = require("crypto");
 
@@ -20,3 +20,13 @@ function machineId() {
 
 contextBridge.exposeInMainWorld("ttMachine", machineId());
 contextBridge.exposeInMainWorld("ttDesktop", { version: process.env.npm_package_version || "1.0.0" });
+
+// Auto-backup bridge (renderer <-> main). File writes happen in the main process.
+contextBridge.exposeInMainWorld("equip360", {
+  pickFolder: () => ipcRenderer.invoke("eq-pick-folder"),
+  saveBackup: (json) => ipcRenderer.invoke("eq-save-backup", json),
+  getCfg: () => ipcRenderer.invoke("eq-get-cfg"),
+  setCfg: (cfg) => ipcRenderer.invoke("eq-set-cfg", cfg),
+  onDoBackup: (fn) => ipcRenderer.on("eq-do-backup", () => fn()),
+  backupDone: (ok) => ipcRenderer.send("eq-backup-done", ok)
+});

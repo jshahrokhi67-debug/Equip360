@@ -1,4 +1,4 @@
-const { app, BrowserWindow, protocol, net, Menu, dialog, shell, session } = require("electron");
+const { app, BrowserWindow, protocol, net, Menu, dialog, shell, session, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const APP_HTML = fs.existsSync(path.join(__dirname,"app","app.bundle.html")) ? "app.bundle.html" : "Equip360.html";
@@ -13,6 +13,46 @@ protocol.registerSchemesAsPrivileged([
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) { app.quit(); }
+
+/* =================== Auto-backup (writes to a user-chosen folder) =================== */
+function eqCfgPath(){ return path.join(app.getPath("userData"), "eq-backup.json"); }
+function eqReadCfg(){ try{ return JSON.parse(fs.readFileSync(eqCfgPath(), "utf8")); }catch(e){ return { enabled:false, folder:"", keep:10 }; } }
+function eqWriteCfg(c){ try{ fs.writeFileSync(eqCfgPath(), JSON.stringify(c)); return true; }catch(e){ return false; } }
+function eqWriteBackup(json){
+  const cfg = eqReadCfg();
+  if(!cfg.folder) return { ok:false, err:"no folder" };
+  try{
+    if(!fs.existsSync(cfg.folder)) fs.mkdirSync(cfg.folder, { recursive:true });
+    const stamp = new Date().toISOString().replace(/[:]/g,"-").replace("T","_").slice(0,16);
+    const name = "Equip360_backup_" + stamp + ".json";
+    fs.writeFileSync(path.join(cfg.folder, name), json);
+    const keep = Math.max(1, cfg.keep || 10);
+    let files = fs.readdirSync(cfg.folder).filter(f => /^Equip360_backup_.*\.json$/.test(f)).sort();
+    while(files.length > keep){ try{ fs.unlinkSync(path.join(cfg.folder, files.shift())); }catch(e){} }
+    return { ok:true, file:name };
+  }catch(err){ return { ok:false, err:String(err) }; }
+}
+ipcMain.handle("eq-get-cfg", () => eqReadCfg());
+ipcMain.handle("eq-set-cfg", (e, c) => eqWriteCfg(c || {}));
+ipcMain.handle("eq-pick-folder", async () => {
+  const r = await dialog.showOpenDialog({ properties:["openDirectory","createDirectory"] });
+  return (r.canceled || !r.filePaths.length) ? null : r.filePaths[0];
+});
+ipcMain.handle("eq-save-backup", (e, json) => eqWriteBackup(json));
+
+let eqQuitting = false, eqBackupPending = false, eqBackupTimer = null;
+ipcMain.on("eq-backup-done", () => {
+  if(eqBackupPending){ eqBackupPending = false; clearTimeout(eqBackupTimer); eqQuitting = true; app.quit(); }
+});
+app.on("before-quit", (e) => {
+  const cfg = eqReadCfg();
+  if(eqQuitting || !cfg.enabled || !cfg.folder) return;         // nothing to do
+  if(!win || !win.webContents){ return; }
+  e.preventDefault();                                            // hold the quit
+  eqBackupPending = true;
+  try{ win.webContents.send("eq-do-backup"); }catch(err){ eqQuitting = true; app.quit(); return; }
+  eqBackupTimer = setTimeout(() => { eqBackupPending = false; eqQuitting = true; app.quit(); }, 8000);
+});
 
 let win = null;
 
