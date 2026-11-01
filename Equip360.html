@@ -511,4 +511,34 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
 })();
 </script>
+<script>
+/* Equip360 v1.0.3 - inspection due is HOURS-ONLY.
+   An idle tool (no new runs) never becomes overdue; only accumulated running
+   hours since the last inspection trigger the alarm. The certificate calendar
+   date is still shown but no longer drives overdue/soon. */
+(function(){
+  "use strict";
+  if(typeof inspState!=="function"||typeof typeOf!=="function"||typeof lastInsp!=="function"||typeof totals!=="function") return;
+  var N=(typeof num==="function")?num:function(x){var n=parseFloat(x);return isNaN(n)?0:n;};
+  var F=(typeof fmt==="function")?fmt:function(x){return Math.round(x);};
+  var FA=(typeof faDate==="function")?faDate:function(x){return x;};
+  var FN=(typeof fromNow==="function")?fromNow:function(){return null;};
+  inspState=function(a){
+    var t=typeOf(a), li=lastInsp(a.id), T=totals(a.id).hours;
+    var limit=N(t.inspHours);
+    var base=li?N(li.hoursAt):0;
+    var used=Math.max(0,T-base);
+    var certDue=(li&&li.due)||null;
+    var dLeft=certDue?FN(certDue):null;
+    var r={limit:limit,used:used,left:limit?limit-used:null,certDue:certDue,dLeft:dLeft,last:li?li.date:null,
+      pct:limit?Math.min(999,Math.round(used/limit*100)):null};
+    r.overdue=(limit>0 && used>=limit);
+    r.soon=!r.overdue && (limit>0 && used>=limit*0.85);
+    r.label=limit?(used>=limit?("overdue by "+F(used-limit,0)+" h"):(F(limit-used,0)+" h left")):(certDue?FA(certDue):"\u2014");
+    r.long=[limit?(F(used,0)+" / "+limit+" h since last inspection"):"",
+      certDue?("certificate valid to "+FA(certDue)):""].filter(Boolean).join(" \u00b7 ")||"no interval set";
+    return r;
+  };
+})();
+</script>
 </body></html>

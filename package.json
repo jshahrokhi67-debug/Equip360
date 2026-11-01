@@ -1,7 +1,7 @@
 {
   "name": "equip360",
   "productName": "Equip360",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Equip360 — oilfield tool tracking, history and inventory",
   "main": "main.js",
   "author": "Jafar Shahrokhi",

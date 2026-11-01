@@ -1,21 +1,42 @@
-/* Runs before the page. Supplies a hardware-derived machine identifier so the
-   licence stays tied to this computer even if application data is cleared. */
+/* Runs before the page. Supplies a STABLE machine identifier so the licence
+   stays tied to this computer and does NOT change across reboots.
+   Priority: Windows MachineGuid (stable per Windows install) -> a persisted
+   random id -> a non-volatile hardware fallback. Network MACs are NOT used
+   (they drift between boots with VPN/Bluetooth/virtual/Wi-Fi-random adapters). */
 const { contextBridge, ipcRenderer } = require("electron");
 const os = require("os");
 const crypto = require("crypto");
 
+function sha(s){ return crypto.createHash("sha256").update("eq::"+String(s)).digest("hex"); }
+
 function machineId() {
-  const parts = [os.hostname(), os.platform(), os.arch(), String(os.totalmem())];
-  const nets = os.networkInterfaces();
-  const macs = [];
-  Object.keys(nets).sort().forEach(name => {
-    (nets[name] || []).forEach(n => {
-      if (n.mac && n.mac !== "00:00:00:00:00:00" && !n.internal) macs.push(n.mac);
-    });
-  });
-  macs.sort();
-  parts.push(macs.slice(0, 2).join("|"));          // first two physical adapters
-  return crypto.createHash("sha256").update(parts.join("::")).digest("hex");
+  // 1) Windows MachineGuid — stable across reboots and even data wipes.
+  try {
+    if (process.platform === "win32") {
+      const out = require("child_process")
+        .execSync('reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid', { timeout: 4000, windowsHide: true })
+        .toString();
+      const m = out.match(/MachineGuid\s+REG_SZ\s+([0-9A-Fa-f-]{10,})/);
+      if (m && m[1]) return sha("winguid:" + m[1].trim());
+    }
+  } catch (e) {}
+
+  // 2) Persisted random id — written once, read forever (stable thereafter).
+  try {
+    const fs = require("fs"), path = require("path");
+    const base = process.env.LOCALAPPDATA || process.env.APPDATA || os.homedir();
+    const file = path.join(base, ".equip360_machine_id");
+    let id = "";
+    try { if (fs.existsSync(file)) id = fs.readFileSync(file, "utf8").trim(); } catch (e) {}
+    if (!id || id.length < 16) {
+      id = crypto.randomBytes(16).toString("hex");
+      try { fs.writeFileSync(file, id); } catch (e) {}
+    }
+    if (id) return sha("persist:" + id);
+  } catch (e) {}
+
+  // 3) Last-resort non-volatile hardware fallback (no network MACs).
+  return sha("hw:" + [os.platform(), os.arch(), os.hostname()].join("|"));
 }
 
 contextBridge.exposeInMainWorld("ttMachine", machineId());
