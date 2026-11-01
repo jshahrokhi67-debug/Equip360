@@ -1,8 +1,8 @@
 {
   "name": "equip360",
   "productName": "Equip360",
-  "version": "1.0.3",
-  "description": "Equip360 — oilfield tool tracking, history and inventory",
+  "version": "1.0.4",
+  "description": "Equip360 \u2014 oilfield tool tracking, history and inventory",
   "main": "main.js",
   "author": "Jafar Shahrokhi",
   "license": "UNLICENSED",
@@ -57,8 +57,8 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico"
     },
-    "copyright": "© 2026 Jafar Shahrokhi",
+    "copyright": "\u00a9 2026 Jafar Shahrokhi",
     "icon": "build/icon.ico"
   },
-  "copyright": "© 2026 Jafar Shahrokhi. All rights reserved."
+  "copyright": "\u00a9 2026 Jafar Shahrokhi. All rights reserved."
 }

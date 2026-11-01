@@ -541,4 +541,123 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   };
 })();
 </script>
+<script>
+/* Equip360 v1.0.4 - UI shim
+   (1) Inspection log accepts MULTIPLE inspection types in one report
+       (Visual + MPI + Dimensional ...). Stored as a comma-joined string so
+       every existing list/detail/calendar view keeps working unchanged.
+   (2) The "Log inspection / certificate" dialog (and every modal) can be
+       dragged around the screen by its header bar. */
+(function(){
+  "use strict";
+  var KINDS=["Visual","Dimensional","MPI","UT","Thread inspection",
+             "Pressure test","Function test","Calibration","Other"];
+
+  /* ---------- (1) multi-select inspection type ---------- */
+  function splitKinds(v){
+    return String(v==null?"":v).split(/[,،]/).map(function(s){return s.trim();})
+           .filter(Boolean);
+  }
+  function upgradeKind(editId){
+    var body=document.getElementById("modalBody");
+    if(!body) return;
+    var sel=body.querySelector('select[data-k="kind"]');
+    if(!sel) return;
+    // true current value comes from the record, not the (single) <select>
+    var cur="";
+    try{
+      if(editId && typeof D==="object" && D && D.insp){
+        var rec=D.insp.find(function(i){return i.id===editId;});
+        if(rec) cur=rec.kind||"";
+      }
+    }catch(e){}
+    var picked={}; splitKinds(cur).forEach(function(k){picked[k]=true;});
+    var label=sel.closest("label.f")||sel.parentElement;
+    // build checkbox grid + hidden collector input (keeps data-k="kind")
+    var box=document.createElement("div");
+    box.style.cssText="display:flex;flex-wrap:wrap;gap:6px 10px;"+
+      "padding:4px 2px 2px;align-items:center";
+    KINDS.forEach(function(k){
+      var id="eqk_"+Math.random().toString(36).slice(2,8);
+      var lab=document.createElement("label");
+      lab.style.cssText="display:inline-flex;align-items:center;gap:5px;"+
+        "margin:0;padding:3px 9px;border:1px solid var(--line,#d6dde3);"+
+        "border-radius:14px;cursor:pointer;font-size:12.5px;"+
+        "background:var(--panel,#fff);user-select:none;white-space:nowrap";
+      var cb=document.createElement("input");
+      cb.type="checkbox"; cb.value=k; cb.id=id;
+      cb.style.cssText="width:auto;margin:0;cursor:pointer";
+      if(picked[k]) cb.checked=true;
+      var sp=document.createElement("span");
+      sp.textContent=k; sp.style.cssText="margin:0;font-size:12.5px";
+      lab.appendChild(cb); lab.appendChild(sp); box.appendChild(lab);
+    });
+    var hidden=document.createElement("input");
+    hidden.type="hidden"; hidden.setAttribute("data-k","kind");
+    hidden.value=splitKinds(cur).join(", ");
+    function sync(){
+      var out=[];
+      box.querySelectorAll('input[type="checkbox"]').forEach(function(c){
+        if(c.checked) out.push(c.value);
+      });
+      hidden.value=out.join(", ");
+      box.querySelectorAll("label").forEach(function(l){
+        var c=l.querySelector('input[type="checkbox"]');
+        l.style.background=c.checked?"var(--accent-soft,#e8f0fe)":"var(--panel,#fff)";
+        l.style.borderColor=c.checked?"var(--accent,#2d6cdf)":"var(--line,#d6dde3)";
+      });
+    }
+    box.addEventListener("change",sync);
+    sel.remove();
+    label.appendChild(box);
+    label.appendChild(hidden);
+    sync();
+  }
+  if(typeof inspForm==="function"){
+    var _orig=inspForm;
+    inspForm=function(id,assetId){
+      var r=_orig.call(this,id,assetId);
+      try{ upgradeKind(id); }catch(e){}
+      return r;
+    };
+  }
+
+  /* ---------- (2) draggable modal ---------- */
+  function initDrag(){
+    var modal=document.getElementById("modal");
+    var box=document.getElementById("modalBox");
+    var head=document.getElementById("modalHead");
+    if(!modal||!box||!head||modal._eqDrag) return;
+    modal._eqDrag=true;
+    head.style.cursor="move";
+    var offX=0, offY=0, drag=null;
+    head.addEventListener("mousedown",function(e){
+      if(e.target.closest("button,input,select,textarea,.x,a")) return;
+      drag={sx:e.clientX,sy:e.clientY,ox:offX,oy:offY};
+      document.body.style.userSelect="none";
+      e.preventDefault();
+    });
+    window.addEventListener("mousemove",function(e){
+      if(!drag) return;
+      offX=drag.ox+(e.clientX-drag.sx);
+      offY=drag.oy+(e.clientY-drag.sy);
+      box.style.transform="translate("+offX+"px,"+offY+"px)";
+    });
+    window.addEventListener("mouseup",function(){
+      if(!drag) return;
+      drag=null; document.body.style.userSelect="";
+    });
+    // every time a modal opens, start it centred again
+    var obs=new MutationObserver(function(){
+      var on=modal.classList.contains("on");
+      if(on && !modal._eqWasOn){ offX=0; offY=0; box.style.transform=""; }
+      modal._eqWasOn=on;
+    });
+    obs.observe(modal,{attributes:true,attributeFilter:["class"]});
+  }
+  if(document.readyState==="loading")
+    document.addEventListener("DOMContentLoaded",initDrag);
+  else initDrag();
+})();
+</script>
 </body></html>
